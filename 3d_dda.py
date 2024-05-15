@@ -14,6 +14,7 @@ from monai.transforms import Compose, Activations, AsDiscrete, Transpose, Orient
 from model.st.get_baseline import get_model
 from libs.data.dataset import dataloader
 from libs.data.st_dataset import dataloader as st_dataloader
+import wandb
 
 def merge(pred):
     
