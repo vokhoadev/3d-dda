@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from monai.data import DataLoader, decollate_batch
-from monai.losses import DiceLoss
+from monai.losses import DiceLoss, DiceCELoss, MarginLoss
 from monai.inferers import sliding_window_inference
 from monai.metrics import DiceMetric
 from monai.transforms import Compose, Activations, AsDiscrete
@@ -215,9 +215,39 @@ def main(data):
 
     ##Init method and params
     config = data['config']
+
+    # Defining losses
     loss_function = DiceLoss(smooth_nr=0, smooth_dr=5e-1, squared_pred=True, to_onehot_y=False, sigmoid=True)
+    
     metric = DiceMetric(include_background=True, reduction="mean")
     metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
+
+    # optimizer
+    if (config['optimizer'] == 'adam'):
+        optimizer = torch.optim.Adam(model.parameters(), config['lr'], weight_decay=1e-4)
+    elif (config['optimizer'] == 'sgd'):
+        optimizer = torch.optim.SGD(model.parameters(), config['lr'], momentum=0.9, weight_decay=1e-4)
+    elif (config['optimizer'] == 'rmsprop'):
+        optimizer = torch.optim.RMSprop(model.parameters(), config['lr'], weight_decay=1e-4)
+    elif (config['optimizer'] == 'adadelta'):
+        optimizer = torch.optim.Adadelta(model.parameters(), config['lr'])
+    elif (config['optimizer'] == 'adamax'):
+        optimizer = torch.optim.Adamax(model.parameters(), config['lr'], weight_decay=1e-4)
+    else:
+        raise 'Invalid optimizer. Valid option: adam, sgd, rmsprop, adadelta, adamax'
+
+    # lr_scheduler
+    if (config['scheduler'] == 'cosine'):
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config['tmax'], eta_min=1e-5)
+    elif (config['scheduler'] == 'step'):
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=config['step_size'], gamma=config['gamma'])
+    elif (config['scheduler'] == 'plateau'):
+        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=config['factor'], patience=config['patience'], verbose=True)
+    elif (config['scheduler'] == 'exponential'):
+        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config['gamma'])
+    else:
+        raise 'Invalid scheduler. Valid option: cosine, step, plateau'
+
     optimizer = torch.optim.Adam(model.parameters(), config['lr'], weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config['tmax'], eta_min=1e-5)
 
