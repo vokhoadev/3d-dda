@@ -248,9 +248,6 @@ def main(data):
     else:
         raise 'Invalid scheduler. Valid option: cosine, step, plateau'
 
-    optimizer = torch.optim.Adam(model.parameters(), config['lr'], weight_decay=1e-4)
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config['tmax'], eta_min=1e-5)
-
     if data['model_trained']:
         checkpoint = torch.load(data['model_trained'],map_location=torch.device(device))
         model.load_state_dict(checkpoint['model'])
