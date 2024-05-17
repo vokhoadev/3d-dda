@@ -1,9 +1,9 @@
 import torch
 from torch import nn
 from monai.data import DataLoader, decollate_batch
-from monai.losses import DiceLoss
+from monai.losses import DiceLoss, FocalLoss, TverskyLoss, DiceCELoss
 from monai.inferers import sliding_window_inference
-from monai.metrics import DiceMetric
+from monai.metrics import DiceMetric, MeanIoU, HausdorffDistanceMetric
 from monai.transforms import Compose, Activations, AsDiscrete
 
 import wandb
@@ -217,10 +217,37 @@ def main(data):
     config = data['config']
 
     # Defining losses
-    loss_function = DiceLoss(smooth_nr=0, smooth_dr=5e-1, squared_pred=True, to_onehot_y=False, sigmoid=True)
+    if config['loss'] == "dice_ce":
+        loss_function = DiceCELoss(softmax=True, to_onehot_y=True)
+    elif config['loss'] == "ce":
+        loss_function = DiceCELoss(softmax=True, to_onehot_y=True, lambda_dice=0.1)
+    elif config['loss'] == "dice":
+        loss_function = DiceCELoss(softmax=True, to_onehot_y=True, lambda_ce=0.1)
+        # loss_function = DiceLoss(smooth_nr=0, smooth_dr=5e-1, squared_pred=True, to_onehot_y=False, sigmoid=True)
+    elif config['loss'] == "tversky":
+        loss_function = TverskyLoss(softmax=True, to_onehot_y=True)
+    elif config['loss'] == "focal":
+        loss_function = FocalLoss(softmax=True, to_onehot_y=True)
+    else:  
+        raise 'Invalid loss. Valid option: DiceCE, CE, Dice, Tversky, Focal'
     
-    metric = DiceMetric(include_background=True, reduction="mean")
-    metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
+    if (config['metric'] == 'dice'):
+        metric = DiceMetric(include_background=True, reduction="mean")
+        metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
+    elif (config['metric'] == 'hausdorff'):
+        metric = HausdorffDistanceMetric(include_background=True)
+        metric_batch = HausdorffDistanceMetric(include_background=True)
+    elif (config['metric'] == 'iou'):
+        metric = MeanIoU(include_background=True, reduction="mean")
+        metric_batch = MeanIoU(include_background=True, reduction="mean_batch")
+    elif (config['metric'] == 'dice_iou'):
+        metric = DiceMetric(include_background=True, reduction="mean")
+        metric_batch = MeanIoU(include_background=True, reduction="mean_batch")
+    elif (config['metric'] == 'dice_hausdorff'):
+        metric = DiceMetric(include_background=True, reduction="mean")
+        metric_batch = HausdorffDistanceMetric(include_background=True)
+    else:   
+        raise 'Invalid metric. Valid option: dice, iou, hausdorff, dice_iou, dice_hausdorff'
 
     # optimizer
     if (config['optimizer'] == 'adam'):
@@ -246,7 +273,7 @@ def main(data):
     elif (config['scheduler'] == 'exponential'):
         lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config['gamma'])
     else:
-        raise 'Invalid scheduler. Valid option: cosine, step, plateau'
+        raise 'Invalid scheduler. Valid option: cosine, step, plateau, exponential'
 
     if data['model_trained']:
         checkpoint = torch.load(data['model_trained'],map_location=torch.device(device))
@@ -258,7 +285,7 @@ def main(data):
 
     logger = None
     if config['log'] == True:
-        logger = wandb.init(project=data['project'], name = config['name'], config=config, dir="/kaggle/input/pretrain/BrainTumour_Seg/")
+        logger = wandb.init(project=data['project'], name = config['name'], config=config, dir="/kaggle/input/pretrain/3d-dda/")
 
     ## Run
     run(model, train_loader, val_loader, optimizer, loss_function, lr_scheduler, metric, metric_batch, logger, config, sepoch = epoch)
