@@ -1,11 +1,4 @@
-# Graduate Thesis: Brain Tumor Segmentaion using Deep Learning.
-In my thesis, I proposed two method to segmentation 3D Brain MRI.
-First method using Attention mechanism to forcus on nessesary position.
-Second one using Fusion method to combine multiple trained model.
-
-Detail: [here](https://www.sowwn.dev/bachelorthesis)
-
-____
+# Brain Tumor Segmentaion using Deep Learning.
 ## How to use?
 ### You need to clone my repo and setup it.
 
@@ -28,7 +21,6 @@ Prepair you datalist
 ```
 
 ### For training
-#### With my first method names 3D Dual-Domain Attention, you need to configure information like **exemple/exp.json**
 ```json
 {
     "model_name": "//one in [segresnet, dynunet, vnet, swinunetr, dynunet_dda]",
@@ -51,10 +43,6 @@ Prepair you datalist
 ```bash
 ~ python seg_train.py --input <your exp.json file>
 ```
-
-
-#### For 3D Dual-Fusion Attention method use just need to upload fusion_train.ipynb in kaggle and training 🤣
-----
 ## Predict
 #### 3D Dual-Domain Attention
 Fill model_trained in exp.json then run
@@ -63,27 +51,3 @@ Fill model_trained in exp.json then run
 
 ~ python 3d_dda.py --input <your exp.json file>
 ```
-#### 3D Dual-Fusion Attention
-**You need to add 2 more variable in exp.json is:**
-```js
-...
-    "model_name": "fusion", 
-    ...
-    "model_trained": null, //null for
-    "dynunet_trained": <path of dynunet trained>,
-    "segresnet_trained": <path of segresnet trained>,
-...
-```
-**than run**
-```zsh
-~ python 3d_dda.py --input <your exp.json file>
-```
-
-***That all :3***
-
-------
-If you like that, please Star my repo 🌟 And if you want to support let follows my github 🎆
-
-Authorized by [Sho0](https://www.sowwn.dev/about)
-
-
