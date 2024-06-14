@@ -125,23 +125,23 @@ def DuckNet3D(img_depth, img_height, img_width, input_channels, out_classes, sta
     t53 = conv_block_3D(t51, starting_filters * 16, 'resnet', repeat=2)
 
     # Upsampling path
-    l5o = UpSampling3D((2, 2, 2), interpolation=interpolation)(t53)
+    l5o = UpSampling3D(size=(2, 2, 2))(t53)
     c4 = add([l5o, t4])
     q4 = conv_block_3D(c4, starting_filters * 8, 'duckv2', repeat=1)
 
-    l4o = UpSampling3D((2, 2, 2), interpolation=interpolation)(q4)
+    l4o = UpSampling3D(size=(2, 2, 2))(q4)
     c3 = add([l4o, t3])
     q3 = conv_block_3D(c3, starting_filters * 4, 'duckv2', repeat=1)
 
-    l3o = UpSampling3D((2, 2, 2), interpolation=interpolation)(q3)
+    l3o = UpSampling3D(size=(2, 2, 2))(q3)
     c2 = add([l3o, t2])
     q6 = conv_block_3D(c2, starting_filters * 2, 'duckv2', repeat=1)
 
-    l2o = UpSampling3D((2, 2, 2), interpolation=interpolation)(q6)
+    l2o = UpSampling3D(size=(2, 2, 2))(q6)
     c1 = add([l2o, t1])
     q1 = conv_block_3D(c1, starting_filters, 'duckv2', repeat=1)
 
-    l1o = UpSampling3D((2, 2, 2), interpolation=interpolation)(q1)
+    l1o = UpSampling3D(size=(2, 2, 2))(q1)
     c0 = add([l1o, t0])
     z1 = conv_block_3D(c0, starting_filters, 'duckv2', repeat=1)
 
