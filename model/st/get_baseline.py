@@ -1,4 +1,5 @@
 from monai.networks.nets import DynUNet, SegResNet, VNet, SwinUNETR
+from model.ducknet.ducknet3d import DuckNet3D
 from model.v2.DynUnet_DDA import DynUNet_DDA
 import torch
 import torch.nn as nn
@@ -65,9 +66,19 @@ def get_model(name, att = None, in_channels=4, out_channels=3):
             dropout_prob=0.5,
             ).to(device)
         return model
+    elif name == "ducknet3d":
+        model = DuckNet3D(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            starting_filters=16,
+            img_depth=128,
+            img_height=128,
+            img_width=128,
+            input_channels=4,
+        ).to(device)
+        return model
     else:
         model = None
-
 
 def get_down(name, trained, cate=False):
     ## Init model

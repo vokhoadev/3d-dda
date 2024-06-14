@@ -87,7 +87,7 @@ def double_convolution_with_batch_normalization_3D(x, filters, dilation_rate=1):
     x = BatchNormalization(axis=-1)(x)
     return x
 
-def create_3D_model(img_depth, img_height, img_width, input_channels, out_classes, starting_filters):
+def DuckNet3D(img_depth, img_height, img_width, input_channels, out_classes, starting_filters):
     input_layer = Input((img_depth, img_height, img_width, input_channels))
 
     print('Starting 3D DUCK-Net')
