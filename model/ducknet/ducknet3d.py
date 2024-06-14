@@ -2,6 +2,10 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 from torch.nn import functional as F
+from torch.nn.functional import interpolate
+
+kernel_initializer = 'he_uniform'
+interpolation = "linear"
 
 class DuckNetBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, padding=1, dilation=1):
@@ -41,6 +45,7 @@ class DuckNet3D(pl.LightningModule):
 
         self.output_layer = nn.Conv3d(starting_filters * 2, out_classes, kernel_size=1)
 
+        self.deep_supervision = True
         # Choose loss function based on output classes
         if out_classes > 1:
             self.loss_fn = nn.CrossEntropyLoss()
@@ -74,6 +79,15 @@ class DuckNet3D(pl.LightningModule):
         d4 = self.decoder4(d4)
 
         output = self.output_layer(d4)
+
+        # Resize the spatial dimension of the label
+        # Ensure that the label and the model's output have the same spatial dimension
+        # if self.training and self.deep_supervision:
+        #     out_all = [output]
+        #     for feature_map in self.heads:
+        #         out_all.append(interpolate(feature_map, output.shape[2:]))
+        #     return torch.stack(out_all, dim=1)
+        
         return output
 
     def configure_optimizers(self):

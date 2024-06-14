@@ -213,9 +213,9 @@ def main(data):
         train_loader, val_loader = dataloader(datalist, 1, 'train', True) 
 
 
-    ##Init method and params
+    ##Init method and params to_onehot_y=True, softmax=True
     config = data['config']
-    loss_function = DiceLoss(smooth_nr=0, smooth_dr=5e-1, squared_pred=True, to_onehot_y=False, sigmoid=True)
+    loss_function = DiceLoss(smooth_nr=0, smooth_dr=5e-1, squared_pred=True, to_onehot_y=True, softmax=True, sigmoid=True)
     metric = DiceMetric(include_background=True, reduction="mean")
     metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
     optimizer = torch.optim.Adam(model.parameters(), config['lr'], weight_decay=1e-4)
