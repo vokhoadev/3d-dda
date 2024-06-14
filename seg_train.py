@@ -215,65 +215,68 @@ def main(data):
 
     ##Init method and params
     config = data['config']
+    loss_function = DiceLoss(smooth_nr=0, smooth_dr=5e-1, squared_pred=True, to_onehot_y=False, sigmoid=True)
+    metric = DiceMetric(include_background=True, reduction="mean")
+    metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
+    optimizer = torch.optim.Adam(model.parameters(), config['lr'], weight_decay=1e-4)
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config['tmax'], eta_min=1e-5)
 
     # Defining losses
-    if config['loss'] == "dice_ce":
-        loss_function = DiceCELoss(softmax=True, to_onehot_y=True)
-    elif config['loss'] == "ce":
-        loss_function = DiceCELoss(softmax=True, to_onehot_y=True, lambda_dice=0.1)
-    elif config['loss'] == "dice":
-        loss_function = DiceCELoss(softmax=True, to_onehot_y=True, lambda_ce=0.1)
-        # loss_function = DiceLoss(smooth_nr=0, smooth_dr=5e-1, squared_pred=True, to_onehot_y=False, sigmoid=True)
-    elif config['loss'] == "tversky":
-        loss_function = TverskyLoss(softmax=True, to_onehot_y=True)
-    elif config['loss'] == "focal":
-        loss_function = FocalLoss(softmax=True, to_onehot_y=True)
-    else:  
-        raise 'Invalid loss. Valid option: DiceCE, CE, Dice, Tversky, Focal'
+    # if config['loss'] == "dice_ce":
+    #     loss_function = DiceCELoss(softmax=True, to_onehot_y=True)
+    # elif config['loss'] == "ce":
+    #     loss_function = DiceCELoss(softmax=True, to_onehot_y=True, lambda_dice=0.1)
+    # elif config['loss'] == "dice":
+    #     loss_function = DiceCELoss(softmax=True, to_onehot_y=True, lambda_ce=0.1)
+    # elif config['loss'] == "tversky":
+    #     loss_function = TverskyLoss(softmax=True, to_onehot_y=True)
+    # elif config['loss'] == "focal":
+    #     loss_function = FocalLoss(softmax=True, to_onehot_y=True)
+    # else:  
+    #     raise 'Invalid loss. Valid option: DiceCE, CE, Dice, Tversky, Focal'
     
-    if (config['metric'] == 'dice'):
-        metric = DiceMetric(include_background=True, reduction="mean")
-        metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
-    elif (config['metric'] == 'hausdorff'):
-        metric = HausdorffDistanceMetric(include_background=True)
-        metric_batch = HausdorffDistanceMetric(include_background=True)
-    elif (config['metric'] == 'iou'):
-        metric = MeanIoU(include_background=True, reduction="mean")
-        metric_batch = MeanIoU(include_background=True, reduction="mean_batch")
-    elif (config['metric'] == 'dice_iou'):
-        metric = DiceMetric(include_background=True, reduction="mean")
-        metric_batch = MeanIoU(include_background=True, reduction="mean_batch")
-    elif (config['metric'] == 'dice_hausdorff'):
-        metric = DiceMetric(include_background=True, reduction="mean")
-        metric_batch = HausdorffDistanceMetric(include_background=True)
-    else:   
-        raise 'Invalid metric. Valid option: dice, iou, hausdorff, dice_iou, dice_hausdorff'
+    # if (config['metric'] == 'dice'):
+    #     metric = DiceMetric(include_background=True, reduction="mean")
+    #     metric_batch = DiceMetric(include_background=True, reduction="mean_batch")
+    # elif (config['metric'] == 'hausdorff'):
+    #     metric = HausdorffDistanceMetric(include_background=True)
+    #     metric_batch = HausdorffDistanceMetric(include_background=True)
+    # elif (config['metric'] == 'iou'):
+    #     metric = MeanIoU(include_background=True, reduction="mean")
+    #     metric_batch = MeanIoU(include_background=True, reduction="mean_batch")
+    # elif (config['metric'] == 'dice_iou'):
+    #     metric = DiceMetric(include_background=True, reduction="mean")
+    #     metric_batch = MeanIoU(include_background=True, reduction="mean_batch")
+    # elif (config['metric'] == 'dice_hausdorff'):
+    #     metric = DiceMetric(include_background=True, reduction="mean")
+    #     metric_batch = HausdorffDistanceMetric(include_background=True)
+    # else:   
+    #     raise 'Invalid metric. Valid option: dice, iou, hausdorff, dice_iou, dice_hausdorff'
 
-    # optimizer
-    if (config['optimizer'] == 'adam'):
-        optimizer = torch.optim.Adam(model.parameters(), config['lr'], weight_decay=1e-4)
-    elif (config['optimizer'] == 'sgd'):
-        optimizer = torch.optim.SGD(model.parameters(), config['lr'], momentum=0.9, weight_decay=1e-4)
-    elif (config['optimizer'] == 'rmsprop'):
-        optimizer = torch.optim.RMSprop(model.parameters(), config['lr'], weight_decay=1e-4)
-    elif (config['optimizer'] == 'adadelta'):
-        optimizer = torch.optim.Adadelta(model.parameters(), config['lr'])
-    elif (config['optimizer'] == 'adamax'):
-        optimizer = torch.optim.Adamax(model.parameters(), config['lr'], weight_decay=1e-4)
-    else:
-        raise 'Invalid optimizer. Valid option: adam, sgd, rmsprop, adadelta, adamax'
+    # if (config['optimizer'] == 'adam'):
+    #     optimizer = torch.optim.Adam(model.parameters(), config['lr'], weight_decay=1e-4)
+    # elif (config['optimizer'] == 'sgd'):
+    #     optimizer = torch.optim.SGD(model.parameters(), config['lr'], momentum=0.9, weight_decay=1e-4)
+    # elif (config['optimizer'] == 'rmsprop'):
+    #     optimizer = torch.optim.RMSprop(model.parameters(), config['lr'], weight_decay=1e-4)
+    # elif (config['optimizer'] == 'adadelta'):
+    #     optimizer = torch.optim.Adadelta(model.parameters(), config['lr'])
+    # elif (config['optimizer'] == 'adamax'):
+    #     optimizer = torch.optim.Adamax(model.parameters(), config['lr'], weight_decay=1e-4)
+    # else:
+    #     raise 'Invalid optimizer. Valid option: adam, sgd, rmsprop, adadelta, adamax'
 
     # lr_scheduler
-    if (config['scheduler'] == 'cosine'):
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config['tmax'], eta_min=1e-5)
-    elif (config['scheduler'] == 'step'):
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=config['step_size'], gamma=config['gamma'])
-    elif (config['scheduler'] == 'plateau'):
-        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=config['factor'], patience=config['patience'], verbose=True)
-    elif (config['scheduler'] == 'exponential'):
-        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config['gamma'])
-    else:
-        raise 'Invalid scheduler. Valid option: cosine, step, plateau, exponential'
+    # if (config['scheduler'] == 'cosine'):
+    #     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=config['tmax'], eta_min=1e-5)
+    # elif (config['scheduler'] == 'step'):
+    #     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=config['step_size'], gamma=config['gamma'])
+    # elif (config['scheduler'] == 'plateau'):
+    #     lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=config['factor'], patience=config['patience'], verbose=True)
+    # elif (config['scheduler'] == 'exponential'):
+    #     lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=config['gamma'])
+    # else:
+    #     raise 'Invalid scheduler. Valid option: cosine, step, plateau, exponential'
 
     if data['model_trained']:
         checkpoint = torch.load(data['model_trained'],map_location=torch.device(device))
