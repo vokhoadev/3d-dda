@@ -98,21 +98,17 @@ class DuckNet3D(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
 
-        # Ensure y has a single channel
-        if y.shape[1] != 1:
-            y = y[:, :1, :, :, :]  # Ensure labels have a single channel
+        # Ensure y has the correct shape
+        if y.shape[1] != self.hparams.out_channels:
+            raise AssertionError("labels should have a channel with length equal to the number of output channels.")
 
         # Resize labels to match the output if necessary
         if y.shape[2:] != y_hat.shape[2:]:
             y = interpolate(y, size=y_hat.shape[2:], mode='trilinear', align_corners=True)
-        
-        if self.hparams.out_classes > 1:
-            # For multi-class segmentation
-            y = y.squeeze(1)  # Remove channel dimension for CrossEntropyLoss
-            loss = self.loss_fn(y_hat, y)
-        else:
-            # For binary segmentation
-            loss = self.loss_fn(y_hat, y.float())  # Ensure y is float for BCEWithLogitsLoss
+
+        dice_loss = self.dice_loss(y_hat, y)
+        ce_loss = self.ce_loss(y_hat, y.argmax(dim=1))  # CrossEntropyLoss expects class indices
+        loss = dice_loss + ce_loss
 
         self.log('train_loss', loss)
         return loss
@@ -121,21 +117,17 @@ class DuckNet3D(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
 
-        # Ensure y has a single channel
-        if y.shape[1] != 1:
-            y = y[:, :1, :, :, :]  # Ensure labels have a single channel
+        # Ensure y has the correct shape
+        if y.shape[1] != self.hparams.out_channels:
+            raise AssertionError("labels should have a channel with length equal to the number of output channels.")
 
         # Resize labels to match the output if necessary
         if y.shape[2:] != y_hat.shape[2:]:
             y = interpolate(y, size=y_hat.shape[2:], mode='trilinear', align_corners=True)
-        
-        if self.hparams.out_classes > 1:
-            # For multi-class segmentation
-            y = y.squeeze(1)
-            loss = self.loss_fn(y_hat, y)
-        else:
-            # For binary segmentation
-            loss = self.loss_fn(y_hat, y.float())
+
+        dice_loss = self.dice_loss(y_hat, y)
+        ce_loss = self.ce_loss(y_hat, y.argmax(dim=1))
+        loss = dice_loss + ce_loss
 
         self.log('val_loss', loss)
         return loss
