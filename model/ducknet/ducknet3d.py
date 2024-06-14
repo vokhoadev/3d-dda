@@ -97,6 +97,15 @@ class DuckNet3D(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
+
+        # Ensure y has a single channel
+        if y.shape[1] != 1:
+            y = y[:, :1, :, :, :]  # Ensure labels have a single channel
+
+        # Resize labels to match the output if necessary
+        if y.shape[2:] != y_hat.shape[2:]:
+            y = interpolate(y, size=y_hat.shape[2:], mode='trilinear', align_corners=True)
+        
         if self.hparams.out_classes > 1:
             # For multi-class segmentation
             y = y.squeeze(1)  # Remove channel dimension for CrossEntropyLoss
@@ -104,12 +113,22 @@ class DuckNet3D(pl.LightningModule):
         else:
             # For binary segmentation
             loss = self.loss_fn(y_hat, y.float())  # Ensure y is float for BCEWithLogitsLoss
+
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
+
+        # Ensure y has a single channel
+        if y.shape[1] != 1:
+            y = y[:, :1, :, :, :]  # Ensure labels have a single channel
+
+        # Resize labels to match the output if necessary
+        if y.shape[2:] != y_hat.shape[2:]:
+            y = interpolate(y, size=y_hat.shape[2:], mode='trilinear', align_corners=True)
+        
         if self.hparams.out_classes > 1:
             # For multi-class segmentation
             y = y.squeeze(1)
@@ -117,5 +136,6 @@ class DuckNet3D(pl.LightningModule):
         else:
             # For binary segmentation
             loss = self.loss_fn(y_hat, y.float())
+
         self.log('val_loss', loss)
         return loss
