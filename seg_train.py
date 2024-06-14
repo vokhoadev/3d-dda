@@ -197,7 +197,7 @@ def run(model, train_loader, val_loader, optimizer, loss_function, lr_scheduler,
 def main(data):
     ## Init model and device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = get_model(data['model_name'], data['att'], data['in_channel'])
+    model = get_model(data['model_name'], data['att'], data['in_channels'], data['out_channels'])
     model = model.to(device)
 
 
