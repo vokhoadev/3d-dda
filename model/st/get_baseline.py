@@ -74,7 +74,7 @@ def get_model(name, att = None, in_channels=4, out_channels=3):
             input_channels=in_channels,
             out_classes=out_channels,
             starting_filters=16
-            ).to(device)
+            )
         return model
     else:
         model = None
