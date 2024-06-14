@@ -41,6 +41,12 @@ class DuckNet3D(pl.LightningModule):
 
         self.output_layer = nn.Conv3d(starting_filters * 2, out_classes, kernel_size=1)
 
+        # Choose loss function based on output classes
+        if out_classes > 1:
+            self.loss_fn = nn.CrossEntropyLoss()
+        else:
+            self.loss_fn = nn.BCEWithLogitsLoss()
+
     def forward(self, x):
         x1 = self.input_layer(x)
 
@@ -77,13 +83,25 @@ class DuckNet3D(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y)
+        if self.hparams.out_classes > 1:
+            # For multi-class segmentation
+            y = y.squeeze(1)  # Remove channel dimension for CrossEntropyLoss
+            loss = self.loss_fn(y_hat, y)
+        else:
+            # For binary segmentation
+            loss = self.loss_fn(y_hat, y.float())  # Ensure y is float for BCEWithLogitsLoss
         self.log('train_loss', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y)
+        if self.hparams.out_classes > 1:
+            # For multi-class segmentation
+            y = y.squeeze(1)
+            loss = self.loss_fn(y_hat, y)
+        else:
+            # For binary segmentation
+            loss = self.loss_fn(y_hat, y.float())
         self.log('val_loss', loss)
         return loss
