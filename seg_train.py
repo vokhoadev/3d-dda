@@ -198,7 +198,7 @@ def main(data):
     ## Init model and device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = get_model(data['model_name'], data['att'], data['in_channel'])
-    # model = model.to(device)
+    model = model.to(device)
 
 
     ##Init dataloader

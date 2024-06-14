@@ -68,13 +68,13 @@ def get_model(name, att = None, in_channels=4, out_channels=3):
         return model
     elif name == "ducknet3d":
         model = DuckNet3D(
-            img_depth=128,
             img_height=128,
             img_width=128,
+            img_depth=128,
             input_channels=in_channels,
             out_classes=out_channels,
-            starting_filters=16
-            )
+            starting_filters=16,
+            ).to(device)
         return model
     else:
         model = None
