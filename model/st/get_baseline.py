@@ -71,8 +71,8 @@ def get_model(name, att = None, in_channels=4, out_channels=3):
             img_height=128,
             img_width=128,
             img_depth=128,
-            in_channels=in_channels,
-            out_channels=out_channels,
+            input_channels=in_channels,
+            out_classes=out_channels,
             starting_filters=16
             ).to(device)
         return model
