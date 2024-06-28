@@ -1,93 +1,112 @@
+from scipy import interpolate
 import torch
-from torch import nn
+import torch.nn as nn
 import pytorch_lightning as pl
-from torch.nn import functional as F
-from torch.nn.functional import interpolate
 
 kernel_initializer = 'he_uniform'
 interpolation = "linear"
 
-class DuckNetBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, padding=1, dilation=1):
-        super(DuckNetBlock, self).__init__()
-        self.conv1 = nn.Conv3d(in_channels, out_channels, kernel_size, padding=padding, dilation=dilation)
-        self.bn1 = nn.BatchNorm3d(out_channels)
-        self.conv2 = nn.Conv3d(out_channels, out_channels, kernel_size, padding=padding, dilation=dilation)
-        self.bn2 = nn.BatchNorm3d(out_channels)
+class ConvBlock3D(nn.Module):
+    def __init__(self, in_channels, out_channels, block_type, repeat=1):
+        super(ConvBlock3D, self).__init__()
+        self.blocks = nn.Sequential(
+            *[self._make_block(in_channels, out_channels, block_type) for _ in range(repeat)]
+        )
+
+    def _make_block(self, in_channels, out_channels, block_type):
+        if block_type == 'duckv2':
+            return nn.Sequential(
+                nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm3d(out_channels),
+                nn.ReLU(inplace=True)
+            )
+        elif block_type == 'resnet':
+            return nn.Sequential(
+                nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm3d(out_channels),
+                nn.ReLU(inplace=True),
+                nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm3d(out_channels)
+            )
 
     def forward(self, x):
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        return x
+        return self.blocks(x)
 
 class DuckNet3D(pl.LightningModule):
-    def __init__(self, img_height, img_width, img_depth, input_channels, out_classes, starting_filters):
+    def __init__(self, in_channels, out_channels, starting_filters):
         super(DuckNet3D, self).__init__()
-        self.save_hyperparameters()
+        self.starting_filters = starting_filters
 
-        self.input_layer = nn.Conv3d(input_channels, starting_filters, kernel_size=3, padding=1)
+        self.conv1 = nn.Conv3d(in_channels, starting_filters * 2, kernel_size=2, stride=2, padding=1)
+        self.conv2 = nn.Conv3d(starting_filters * 2, starting_filters * 4, kernel_size=2, stride=2, padding=1)
+        self.conv3 = nn.Conv3d(starting_filters * 4, starting_filters * 8, kernel_size=2, stride=2, padding=1)
+        self.conv4 = nn.Conv3d(starting_filters * 8, starting_filters * 16, kernel_size=2, stride=2, padding=1)
+        self.conv5 = nn.Conv3d(starting_filters * 16, starting_filters * 32, kernel_size=2, stride=2, padding=1)
 
-        self.encoder1 = DuckNetBlock(starting_filters, starting_filters * 2)
-        self.encoder2 = DuckNetBlock(starting_filters * 2, starting_filters * 4)
-        self.encoder3 = DuckNetBlock(starting_filters * 4, starting_filters * 8)
-        self.encoder4 = DuckNetBlock(starting_filters * 8, starting_filters * 16)
+        self.block1 = ConvBlock3D(in_channels, starting_filters, 'duckv2', repeat=1)
+        self.block2 = ConvBlock3D(starting_filters * 2, starting_filters * 2, 'duckv2', repeat=1)
+        self.block3 = ConvBlock3D(starting_filters * 4, starting_filters * 4, 'duckv2', repeat=1)
+        self.block4 = ConvBlock3D(starting_filters * 8, starting_filters * 8, 'duckv2', repeat=1)
+        self.block5 = ConvBlock3D(starting_filters * 16, starting_filters * 16, 'duckv2', repeat=1)
 
-        self.bottleneck = DuckNetBlock(starting_filters * 16, starting_filters * 32)
+        self.block51 = ConvBlock3D(starting_filters * 32, starting_filters * 32, 'resnet', repeat=2)
+        self.block53 = ConvBlock3D(starting_filters * 32, starting_filters * 16, 'resnet', repeat=2)
 
-        self.up1 = nn.ConvTranspose3d(starting_filters * 32, starting_filters * 16, kernel_size=2, stride=2)
-        self.decoder1 = DuckNetBlock(starting_filters * 32, starting_filters * 16)
-        self.up2 = nn.ConvTranspose3d(starting_filters * 16, starting_filters * 8, kernel_size=2, stride=2)
-        self.decoder2 = DuckNetBlock(starting_filters * 16, starting_filters * 8)
-        self.up3 = nn.ConvTranspose3d(starting_filters * 8, starting_filters * 4, kernel_size=2, stride=2)
-        self.decoder3 = DuckNetBlock(starting_filters * 8, starting_filters * 4)
-        self.up4 = nn.ConvTranspose3d(starting_filters * 4, starting_filters * 2, kernel_size=2, stride=2)
-        self.decoder4 = DuckNetBlock(starting_filters * 4, starting_filters * 2)
+        self.upsample = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True)
+        self.final_conv = nn.Conv3d(starting_filters, out_channels, kernel_size=1)
 
-        self.output_layer = nn.Conv3d(starting_filters * 2, out_classes, kernel_size=1)
-
-        self.deep_supervision = True
-        # Choose loss function based on output classes
-        if out_classes > 1:
-            self.loss_fn = nn.CrossEntropyLoss()
-        else:
-            self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, x):
-        x1 = self.input_layer(x)
+        p1 = self.conv1(x)
+        p2 = self.conv2(p1)
+        p3 = self.conv3(p2)
+        p4 = self.conv4(p3)
+        p5 = self.conv5(p4)
 
-        e1 = self.encoder1(F.max_pool3d(x1, 2))
-        e2 = self.encoder2(F.max_pool3d(e1, 2))
-        e3 = self.encoder3(F.max_pool3d(e2, 2))
-        e4 = self.encoder4(F.max_pool3d(e3, 2))
+        t0 = self.block1(x)
 
-        b = self.bottleneck(F.max_pool3d(e4, 2))
+        l1i = self.conv1(t0)
+        s1 = p1 + l1i
+        t1 = self.block2(s1)
 
-        d1 = self.up1(b)
-        d1 = torch.cat((d1, e4), dim=1)
-        d1 = self.decoder1(d1)
+        l2i = self.conv2(t1)
+        s2 = p2 + l2i
+        t2 = self.block3(s2)
 
-        d2 = self.up2(d1)
-        d2 = torch.cat((d2, e3), dim=1)
-        d2 = self.decoder2(d2)
+        l3i = self.conv3(t2)
+        s3 = p3 + l3i
+        t3 = self.block4(s3)
 
-        d3 = self.up3(d2)
-        d3 = torch.cat((d3, e2), dim=1)
-        d3 = self.decoder3(d3)
+        l4i = self.conv4(t3)
+        s4 = p4 + l4i
+        t4 = self.block5(s4)
 
-        d4 = self.up4(d3)
-        d4 = torch.cat((d4, e1), dim=1)
-        d4 = self.decoder4(d4)
+        l5i = self.conv5(t4)
+        s5 = p5 + l5i
+        t51 = self.block51(s5)
+        t53 = self.block53(t51)
 
-        output = self.output_layer(d4)
+        l5o = self.upsample(t53)
+        c4 = t4 + l5o
+        q4 = self.block4(c4)
 
-        # Resize the spatial dimension of the label
-        # Ensure that the label and the model's output have the same spatial dimension
-        # if self.training and self.deep_supervision:
-        #     out_all = [output]
-        #     for feature_map in self.heads:
-        #         out_all.append(interpolate(feature_map, output.shape[2:]))
-        #     return torch.stack(out_all, dim=1)
-        
+        l4o = self.upsample(q4)
+        c3 = t3 + l4o
+        q3 = self.block3(c3)
+
+        l3o = self.upsample(q3)
+        c2 = t2 + l3o
+        q6 = self.block2(c2)
+
+        l2o = self.upsample(q6)
+        c1 = t1 + l2o
+        q1 = self.block1(c1)
+
+        l1o = self.upsample(q1)
+        c0 = t0 + l1o
+        z1 = self.block1(c0)
+
+        output = self.final_conv(z1)
         return output
 
     def configure_optimizers(self):

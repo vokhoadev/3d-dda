@@ -67,14 +67,7 @@ def get_model(name, att = None, in_channels=4, out_channels=3):
             ).to(device)
         return model
     elif name == "ducknet3d":
-        model = DuckNet3D(
-            img_height=128,
-            img_width=128,
-            img_depth=128,
-            input_channels=in_channels,
-            out_classes=out_channels,
-            starting_filters=16
-            ).to(device)
+        model = DuckNet3D(in_channels=in_channels, out_channels=out_channels, starting_filters=32).to(device)
         return model
     else:
         model = None
@@ -100,6 +93,11 @@ def get_down(name, trained, cate=False):
         net = torch.nn.Sequential(ConvBNReLU(128,256,3,2),ConvBNReLU(256,320,3,2), net).to(device)
         return net, down
         # torch.nn.Conv3d(512,320,1,1)
+    elif name == 'ducknet3d':
+        # Assuming DuckNet3D follows similar structure for encoder extraction
+        down = model.encoder
+        net = torch.nn.Sequential(ConvBNReLU(320, 320, 3, 1), ConvBNReLU(320, 320, 3, 1), net).to(device)
+        return net, down
 
 if __name__ == "__main__":
     ## params
